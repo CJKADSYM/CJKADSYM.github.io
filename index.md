@@ -1,37 +1,143 @@
 ## Welcome to GitHub Pages
 
-You can use the [editor on GitHub](https://github.com/CJKADSYM/CJKADSYM.github.io/edit/main/index.md) to maintain and preview the content for your website in Markdown files.
+<!-- Code from d3-graph-gallery.com -->
+<!DOCTYPE html>
+<meta charset="utf-8">
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+<!-- Load d3.js -->
+<script src="https://d3js.org/d3.v4.js"></script>
 
-### Markdown
+<!-- Create a div where the graph will take place -->
+<div id="my_dataviz">
+	<h1>
+		heading here
+	</h1>
+</div>
+<div>
+	<p> text here </p>
+</div>
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
 
-```markdown
-Syntax highlighted code block
+<script>
 
-# Header 1
-## Header 2
-### Header 3
+// set the dimensions and margins of the graph
+var margin = {top: 10, right: 30, bottom: 20, left: 50},
+    width = 1200 - margin.left - margin.right,
+    height = 600 - margin.top - margin.bottom;
 
-- Bulleted
-- List
+// append the svg object to the body of the page
+var svg = d3.select("#my_dataviz")
+  .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
 
-1. Numbered
-2. List
+// Parse the Data
+d3.csv("https://raw.githubusercontent.com/CJKADSYM/CCT470-WORKSHOP3/main/CLEANED-water-quality-regional-en.csv", function(data) {
 
-**Bold** and _Italic_ and `Code` text
+  // List of subgroups = header of the csv files = soil condition here
+  var subgroups = data.columns.slice(1)
 
-[Link](url) and ![Image](src)
-```
+  // List of groups = species here = value of the first column called group -> I show them on the X axis
+  var groups = d3.map(data, function(d){return(d.group)}).keys()
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+  // Add X axis
+  var x = d3.scaleBand()
+      .domain(groups)
+      .range([0, width])
+      .padding([0.4])
+  svg.append("g")
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x).tickSizeOuter(0));
 
-### Jekyll Themes
+  // Add Y axis
+  var y = d3.scaleLinear()
+    .domain([0, 60])
+    .range([ height, 0 ]);
+  svg.append("g")
+    .call(d3.axisLeft(y));
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/CJKADSYM/CJKADSYM.github.io/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+  // color palette = one color per subgroup
+  var color = d3.scaleOrdinal()
+    .domain(subgroups)
+    .range(['#53BCED','#3F71B1','#038F81','#025951','#F25116'])
 
-### Support or Contact
+  //stack the data? --> stack per subgroup
+  var stackedData = d3.stack()
+    .keys(subgroups)
+    (data)
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+
+
+
+  // ----------------
+  // Create a tooltip
+  // ----------------
+  var tooltip = d3.select("#my_dataviz")
+    .append("div")
+    .style("opacity", 0)
+  	.style("position", "absolute")
+    .attr("class", "tooltip")
+    .style("background-color", "white")
+    .style("border", "solid")
+    .style("border-width", "1px")
+    .style("border-radius", "5px")
+    .style("padding", "10px")
+
+  // Three function that change the tooltip when user hover / move / leave a cell
+  var mouseover = function(d) {
+    var subgroupName = d3.select(this.parentNode).datum().key;
+    var subgroupValue = d.data[subgroupName];
+    tooltip
+        .html("Quality: " + subgroupName + "<br>" + "Water Site: " + subgroupValue)
+        .style("opacity", 1)
+  // ----------------
+  // Highlight a specific subgroup when hovered
+  // ----------------
+   d3.selectAll(".myRect")
+	   .style("opacity", 0.2)
+	   .style ("transition-duration", "0.5s")
+   d3.selectAll("."+subgroupName)
+      .style("opacity", 1)
+}
+  var mousemove = function(d) {
+    tooltip
+      .style("left", (d3.mouse(this)[0]+90) + "px") // It is important to put the +90: other wise the tooltip is exactly where the point is an it creates a weird effect
+      .style("top", (d3.mouse(this)[1]) + "px")
+  }
+  var mouseleave = function(d) {
+    tooltip
+      .style("opacity", 0)
+	d3.selectAll(".myRect")
+      .style("opacity", 1)
+  }
+
+
+
+
+  // Show the bars
+  svg.append("g")
+    .selectAll("g")
+    // Enter in the stack data = loop key per key = group per group
+    .data(stackedData)
+    .enter().append("g")
+      .attr("fill", function(d) { return color(d.key); })
+	  .attr("class", function(d){ return "myRect " + d.key }) // Add a class to each subgroup: their name
+      .selectAll("rect")
+      // enter a second time = loop subgroup per subgroup to add all rectangles
+      .data(function(d) { return d; })
+      .enter().append("rect")
+        .attr("x", function(d) { return x(d.data.group); })
+        .attr("y", function(d) { return y(d[1]); })
+        .attr("height", function(d) { return y(d[0]) - y(d[1]); })
+        .attr("width",x.bandwidth())
+        .attr("stroke", "grey")
+      .on("mouseover", mouseover)
+      .on("mousemove", mousemove)
+      .on("mouseleave", mouseleave)
+
+})
+
+</script>
